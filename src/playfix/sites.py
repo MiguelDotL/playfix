@@ -52,7 +52,7 @@ SITES: tuple[SiteRule, ...] = (
         id="instagram",
         name="Instagram",
         domains=("instagram.com",),
-        fix_domain="ddinstagram.com",
+        fix_domain="kkinstagram.com",
         path_re=_c(r"/(?:p|reel|reels|tv|share)/[\w.-]+"),
     ),
     SiteRule(
@@ -138,20 +138,6 @@ SITES: tuple[SiteRule, ...] = (
         domains=("furaffinity.net",),
         fix_domain="xfuraffinity.net",
         path_re=_c(r"/view/\d+"),
-    ),
-    SiteRule(
-        id="mastodon",
-        name="Mastodon",
-        domains=(
-            "mastodon.social",
-            "mstdn.social",
-            "mastodon.world",
-            "mastodon.online",
-            "mas.to",
-            "infosec.exchange",
-        ),
-        fix_domain="fx.zillanlabs.tech",
-        path_re=_c(r"/@[\w.-]+/\d+"),
     ),
 )
 
