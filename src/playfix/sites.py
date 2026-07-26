@@ -52,7 +52,7 @@ SITES: tuple[SiteRule, ...] = (
         id="instagram",
         name="Instagram",
         domains=("instagram.com",),
-        fix_domain="fxstagram.com",
+        fix_domain="ddinstagram.com",
         path_re=_c(r"/(?:p|reel|reels|tv|share)/[\w.-]+"),
     ),
     SiteRule(

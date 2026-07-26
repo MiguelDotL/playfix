@@ -20,8 +20,8 @@ from playfix.rewrite import rewrite_text, rewrite_url
             "https://fxtwitter.com/a/status/1?s=20&t=abc",
         ),
         # Instagram content.
-        ("https://instagram.com/reel/CxYz", "https://fxstagram.com/reel/CxYz"),
-        ("https://www.instagram.com/p/AbC-1/", "https://fxstagram.com/p/AbC-1/"),
+        ("https://instagram.com/reel/CxYz", "https://ddinstagram.com/reel/CxYz"),
+        ("https://www.instagram.com/p/AbC-1/", "https://ddinstagram.com/p/AbC-1/"),
         # TikTok content.
         (
             "https://www.tiktok.com/@user.name/video/7300000000000000000",
