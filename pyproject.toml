@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "playfix"
+dynamic = ["version"]
+description = "A self-hostable Discord bot that makes social media links play — reposted as you."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "PlayFix contributors" }]
+keywords = ["discord", "discord-bot", "embed", "fxtwitter", "twitter", "tiktok", "instagram"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Communications :: Chat",
+    "Framework :: AsyncIO",
+]
+dependencies = [
+    "discord.py>=2.4,<3",
+    "aiosqlite>=0.20",
+    "pydantic-settings>=2.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.urls]
+Homepage = "https://github.com/playfix/playfix"
+Source = "https://github.com/playfix/playfix"
+Issues = "https://github.com/playfix/playfix/issues"
+
+[project.scripts]
+playfix = "playfix.__main__:main"
+
+[tool.hatch.version]
+path = "src/playfix/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/playfix"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "C4", "RUF"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

@@ -1,0 +1,15 @@
+PlayFix
+Copyright (c) 2026 PlayFix contributors
+
+This product includes data (the mapping of social-media domains to their
+embed-fixer domains, in src/playfix/sites.py) adapted from FixTweetBot by Kyrela
+(https://github.com/Kyrela/FixTweetBot), licensed under the MIT License with the
+Commons Clause. Only factual domain mappings were reused, reimplemented in
+PlayFix's own code; no FixTweetBot source code is included.
+
+PlayFix relies on third-party, community-run embed-fixer services (FxTwitter /
+FxEmbed, tnktok, vxreddit, fxstagram, and others). Those services are operated by
+their respective maintainers and are not affiliated with PlayFix.
+
+"Discord" is a trademark of Discord Inc. PlayFix is an independent project and is
+not affiliated with, endorsed by, or sponsored by Discord Inc.

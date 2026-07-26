@@ -1,0 +1,15 @@
+.git
+.github
+.venv
+tests
+data
+.env
+*.sqlite3
+__pycache__
+.pytest_cache
+.ruff_cache
+*.md
+!README.md
+Makefile
+.pre-commit-config.yaml
+.woodpecker.yml

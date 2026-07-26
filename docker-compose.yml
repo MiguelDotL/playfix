@@ -1,0 +1,11 @@
+services:
+  playfix:
+    build: .
+    image: ghcr.io/playfix/playfix:latest
+    container_name: playfix
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    # No ports: PlayFix is an outbound-only worker (it dials out to Discord's gateway).
+    # It must not scale to zero, or it disconnects and misses messages.
