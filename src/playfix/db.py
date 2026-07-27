@@ -1,7 +1,8 @@
-"""Per-guild settings, persisted in SQLite (no external DB server).
+"""Per-guild settings, stored in SQLite (no external database server).
 
-Reads are served from an in-memory cache; writes are write-through. Defaults come
-from :class:`~playfix.config.Settings`, so a brand-new guild works with zero setup.
+Reads are served from an in-memory cache and writes go straight through to disk.
+Defaults come from :class:`~playfix.config.Settings`, so a brand-new guild works
+with no setup at all.
 """
 
 from __future__ import annotations
@@ -30,7 +31,7 @@ CREATE TABLE IF NOT EXISTS disabled_channels (
 
 @dataclass(frozen=True, slots=True)
 class GuildConfig:
-    """Effective settings for one guild."""
+    """The effective PlayFix settings for one guild."""
 
     guild_id: int
     enabled: bool
@@ -40,7 +41,7 @@ class GuildConfig:
 
 
 class Database:
-    """Async SQLite-backed store for per-guild settings, with a read cache."""
+    """SQLite-backed store for per-guild settings, with a write-through read cache."""
 
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
@@ -49,9 +50,9 @@ class Database:
         self._cache: dict[int, GuildConfig] = {}
 
     async def init(self) -> None:
-        parent = os.path.dirname(self._path)
-        if parent:
-            os.makedirs(parent, exist_ok=True)
+        directory = os.path.dirname(self._path)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
         self._conn = await aiosqlite.connect(self._path)
         await self._conn.executescript(_SCHEMA)
         await self._conn.commit()
@@ -61,7 +62,38 @@ class Database:
             await self._conn.close()
             self._conn = None
 
-    def _default(self, guild_id: int) -> GuildConfig:
+    @property
+    def _db(self) -> aiosqlite.Connection:
+        if self._conn is None:
+            raise RuntimeError("Database.init() must be called before use")
+        return self._conn
+
+    # --- reads ---------------------------------------------------------------
+
+    async def get(self, guild_id: int) -> GuildConfig:
+        if guild_id not in self._cache:
+            self._cache[guild_id] = await self._load(guild_id)
+        return self._cache[guild_id]
+
+    async def _load(self, guild_id: int) -> GuildConfig:
+        async with self._db.execute(
+            "SELECT enabled, mode, delete_original FROM guild_settings WHERE guild_id = ?",
+            (guild_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+        disabled = await self._disabled_channels(guild_id)
+        if row is None:
+            return replace(self._defaults(guild_id), disabled_channels=disabled)
+        enabled, mode, delete_original = row
+        return GuildConfig(
+            guild_id=guild_id,
+            enabled=bool(enabled),
+            mode=mode,
+            delete_original=bool(delete_original),
+            disabled_channels=disabled,
+        )
+
+    def _defaults(self, guild_id: int) -> GuildConfig:
         return GuildConfig(
             guild_id=guild_id,
             enabled=True,
@@ -69,81 +101,50 @@ class Database:
             delete_original=self._settings.default_delete_original,
         )
 
-    async def get(self, guild_id: int) -> GuildConfig:
-        cached = self._cache.get(guild_id)
-        if cached is not None:
-            return cached
-        assert self._conn is not None
-        async with self._conn.execute(
-            "SELECT enabled, mode, delete_original FROM guild_settings WHERE guild_id = ?",
-            (guild_id,),
-        ) as cur:
-            row = await cur.fetchone()
-        if row is None:
-            cfg = self._default(guild_id)
-        else:
-            channels = await self._load_disabled_channels(guild_id)
-            cfg = GuildConfig(
-                guild_id=guild_id,
-                enabled=bool(row[0]),
-                mode=row[1],
-                delete_original=bool(row[2]),
-                disabled_channels=channels,
-            )
-        self._cache[guild_id] = cfg
-        return cfg
-
-    async def _load_disabled_channels(self, guild_id: int) -> frozenset[int]:
-        assert self._conn is not None
-        async with self._conn.execute(
+    async def _disabled_channels(self, guild_id: int) -> frozenset[int]:
+        async with self._db.execute(
             "SELECT channel_id FROM disabled_channels WHERE guild_id = ?", (guild_id,)
-        ) as cur:
-            return frozenset(r[0] for r in await cur.fetchall())
+        ) as cursor:
+            return frozenset(channel_id for (channel_id,) in await cursor.fetchall())
 
-    async def _upsert(self, cfg: GuildConfig) -> None:
-        assert self._conn is not None
-        await self._conn.execute(
+    # --- writes --------------------------------------------------------------
+
+    async def set_enabled(self, guild_id: int, enabled: bool) -> GuildConfig:
+        return await self._update(guild_id, enabled=enabled)
+
+    async def set_mode(self, guild_id: int, mode: Mode) -> GuildConfig:
+        return await self._update(guild_id, mode=mode)
+
+    async def set_delete_original(self, guild_id: int, delete_original: bool) -> GuildConfig:
+        return await self._update(guild_id, delete_original=delete_original)
+
+    async def _update(self, guild_id: int, **changes: object) -> GuildConfig:
+        cfg = replace(await self.get(guild_id), **changes)
+        await self._db.execute(
             "INSERT INTO guild_settings (guild_id, enabled, mode, delete_original) "
-            "VALUES (?, ?, ?, ?) ON CONFLICT(guild_id) DO UPDATE SET "
+            "VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(guild_id) DO UPDATE SET "
             "enabled = excluded.enabled, mode = excluded.mode, "
             "delete_original = excluded.delete_original",
             (cfg.guild_id, int(cfg.enabled), cfg.mode, int(cfg.delete_original)),
         )
-        await self._conn.commit()
-        self._cache[cfg.guild_id] = cfg
-
-    async def set_enabled(self, guild_id: int, enabled: bool) -> GuildConfig:
-        cfg = replace(await self.get(guild_id), enabled=enabled)
-        await self._upsert(cfg)
-        return cfg
-
-    async def set_mode(self, guild_id: int, mode: Mode) -> GuildConfig:
-        cfg = replace(await self.get(guild_id), mode=mode)
-        await self._upsert(cfg)
-        return cfg
-
-    async def set_delete_original(self, guild_id: int, value: bool) -> GuildConfig:
-        cfg = replace(await self.get(guild_id), delete_original=value)
-        await self._upsert(cfg)
+        await self._db.commit()
+        self._cache[guild_id] = cfg
         return cfg
 
     async def set_channel_enabled(
         self, guild_id: int, channel_id: int, enabled: bool
     ) -> GuildConfig:
-        assert self._conn is not None
         if enabled:
-            await self._conn.execute(
+            await self._db.execute(
                 "DELETE FROM disabled_channels WHERE guild_id = ? AND channel_id = ?",
                 (guild_id, channel_id),
             )
         else:
-            await self._conn.execute(
+            await self._db.execute(
                 "INSERT OR IGNORE INTO disabled_channels (guild_id, channel_id) VALUES (?, ?)",
                 (guild_id, channel_id),
             )
-        await self._conn.commit()
-        # Ensure a base row exists so the guild persists, then refresh cache.
-        base = await self.get(guild_id)
-        await self._upsert(base)
-        self._cache.pop(guild_id, None)
+        await self._db.commit()
+        self._cache.pop(guild_id, None)  # invalidate so the next read reflects the change
         return await self.get(guild_id)

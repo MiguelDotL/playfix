@@ -13,7 +13,7 @@ from .config import Settings
 
 def main() -> None:
     try:
-        settings = Settings()  # type: ignore[call-arg]
+        settings = Settings()
     except ValidationError:
         sys.exit(
             "PlayFix: no bot token found. Set PLAYFIX_TOKEN (or DISCORD_TOKEN), "
