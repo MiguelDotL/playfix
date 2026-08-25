@@ -61,8 +61,10 @@ def rewrite_url(url: str) -> str | None:
     path_and_query = parts.path + (f"?{parts.query}" if parts.query else "")
     if not rule.path_re.search(path_and_query):
         return None
-    # Replace the whole netloc (drops any userinfo/port); keep path/query/fragment.
-    return urlunsplit(parts._replace(netloc=rule.fix_domain))
+    # Replace the whole netloc (drops any userinfo/port); keep path/fragment, and
+    # keep the query unless the rule says it is tracking-only noise.
+    query = "" if rule.strip_query else parts.query
+    return urlunsplit(parts._replace(netloc=rule.fix_domain, query=query))
 
 
 def _find_urls(text: str) -> list[tuple[int, int, str]]:
