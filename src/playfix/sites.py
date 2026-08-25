@@ -28,6 +28,9 @@ class SiteRule:
     fix_domain: str
     #: Regex searched against ``path[?query]``; must match for a rewrite to happen.
     path_re: re.Pattern[str] = field(compare=False)
+    #: Drop the query string from the fixed URL. For platforms whose share links
+    #: carry only tracking cruft (Instagram's ``?igsh=``), the query is noise.
+    strip_query: bool = False
 
 
 def _compile(pattern: str) -> re.Pattern[str]:
@@ -55,6 +58,8 @@ SITES: tuple[SiteRule, ...] = (
         domains=("instagram.com",),
         fix_domain="kkinstagram.com",
         path_re=_compile(r"/(?:p|reel|reels|tv|share)/[\w.-]+"),
+        # Share links append ?igsh=<tracking token>; nothing in the query is useful.
+        strip_query=True,
     ),
     SiteRule(
         id="tiktok",
