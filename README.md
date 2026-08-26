@@ -102,8 +102,12 @@ No. PlayFix only stores per-server settings and the IDs of webhooks it creates. 
 never logged.
 
 **Something isn't fixing / a fixer site is down.**
-The fixer services are community-run and occasionally have outages. Open an issue and we'll adjust the
-mapping in [`sites.py`](src/playfix/sites.py).
+The fixer services are community-run and occasionally have outages. PlayFix handles the common case
+itself: after posting, it checks whether Discord actually drew an embed, and if it didn't, it edits the
+message to retry the link on that site's spare fixer (TikTok falls back from `tnktok.com` to
+`tiktokez.com`). The spare is only used when the primary comes up empty, so you keep the better
+click-through on a normal day. If a fixer is down for good, open an issue and we'll adjust the mapping
+in [`sites.py`](src/playfix/sites.py).
 
 ## 🛠️ How it works
 
