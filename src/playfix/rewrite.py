@@ -8,7 +8,7 @@ plus a record of what changed.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from urllib.parse import urlsplit, urlunsplit
 
 from .sites import SITES, SiteRule
@@ -33,10 +33,20 @@ class RewriteResult:
     text: str
     #: ``(original_url, fixed_url)`` for every link that was changed.
     rewrites: list[tuple[str, str]]
+    #: ``fixed_url -> same link on the rule's fallback fixer``, for the subset of
+    #: rewrites whose rule declares a spare. Used to retry a link that drew no embed.
+    fallbacks: dict[str, str] = field(default_factory=dict)
 
     @property
     def changed(self) -> bool:
         return bool(self.rewrites)
+
+    def fallback_text(self) -> str:
+        """``text`` with every fallback-capable link swapped to its spare fixer."""
+        out = self.text
+        for fixed, spare in self.fallbacks.items():
+            out = out.replace(fixed, spare)
+        return out
 
 
 def _match(host: str) -> SiteRule | None:
@@ -49,8 +59,8 @@ def _match(host: str) -> SiteRule | None:
     return None
 
 
-def rewrite_url(url: str) -> str | None:
-    """Rewrite a single URL to its fixer domain, or ``None`` if it doesn't apply."""
+def _rewrite(url: str) -> tuple[str, str | None] | None:
+    """Return ``(fixed_url, fallback_url_or_None)``, or ``None`` if no rule applies."""
     parts = urlsplit(url)
     host = parts.hostname
     if not host:
@@ -61,10 +71,22 @@ def rewrite_url(url: str) -> str | None:
     path_and_query = parts.path + (f"?{parts.query}" if parts.query else "")
     if not rule.path_re.search(path_and_query):
         return None
+
     # Replace the whole netloc (drops any userinfo/port); keep path/fragment, and
     # keep the query unless the rule says it is tracking-only noise.
     query = "" if rule.strip_query else parts.query
-    return urlunsplit(parts._replace(netloc=rule.fix_domain, query=query))
+
+    def swap(domain: str) -> str:
+        return urlunsplit(parts._replace(netloc=domain, query=query))
+
+    spare = swap(rule.fallback_domain) if rule.fallback_domain else None
+    return swap(rule.fix_domain), spare
+
+
+def rewrite_url(url: str) -> str | None:
+    """Rewrite a single URL to its fixer domain, or ``None`` if it doesn't apply."""
+    result = _rewrite(url)
+    return result[0] if result is not None else None
 
 
 def _find_urls(text: str) -> list[tuple[int, int, str]]:
@@ -84,15 +106,21 @@ def _find_urls(text: str) -> list[tuple[int, int, str]]:
 def rewrite_text(text: str) -> RewriteResult:
     """Swap every supported social link in ``text`` for its fixer version."""
     rewrites: list[tuple[str, str]] = []
+    fallbacks: dict[str, str] = {}
     out: list[str] = []
     cursor = 0
     for start, end, url in _find_urls(text):
-        fixed = rewrite_url(url)
-        if fixed is None or fixed == url:
+        result = _rewrite(url)
+        if result is None:
+            continue
+        fixed, spare = result
+        if fixed == url:
             continue
         out.append(text[cursor:start])
         out.append(fixed)
         cursor = end
         rewrites.append((url, fixed))
+        if spare is not None and spare != fixed:
+            fallbacks[fixed] = spare
     out.append(text[cursor:])
-    return RewriteResult("".join(out), rewrites)
+    return RewriteResult("".join(out), rewrites, fallbacks)
