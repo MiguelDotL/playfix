@@ -31,6 +31,10 @@ class SiteRule:
     #: Drop the query string from the fixed URL. For platforms whose share links
     #: carry only tracking cruft (Instagram's ``?igsh=``), the query is noise.
     strip_query: bool = False
+    #: A second fixer to retry with when Discord renders no embed for ``fix_domain``.
+    #: Fixers are free services that rate-limit and go down; a spare keeps the video
+    #: playing on the bad days without giving up the primary's nicer click-through.
+    fallback_domain: str | None = None
 
 
 def _compile(pattern: str) -> re.Pattern[str]:
@@ -67,6 +71,10 @@ SITES: tuple[SiteRule, ...] = (
         domains=("tiktok.com",),
         fix_domain="tnktok.com",
         path_re=_compile(r"/(?:@[\w.-]+/(?:video|photo)/\d+|t/[\w-]+|v/\d+|embed/\d+)"),
+        # tnktok redirects humans to the real TikTok page, so it stays primary;
+        # tiktokez (EmbedEZ) embeds reliably but lands clicks on its own download
+        # page, which makes it a good spare rather than a good default.
+        fallback_domain="tiktokez.com",
     ),
     SiteRule(
         id="reddit",
