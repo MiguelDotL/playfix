@@ -1,6 +1,9 @@
 # Self-hosted CI (Woodpecker). No GitHub Actions by design.
 when:
-  - event: [push, pull_request]
+  # `manual` is what backs the "Run pipeline" button in the Woodpecker UI. Without
+  # it that button fails with "No matching workflows found" - nothing is broken,
+  # there is just no workflow accepting that event.
+  - event: [push, pull_request, manual]
 
 steps:
   - name: check
