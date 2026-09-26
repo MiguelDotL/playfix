@@ -103,11 +103,17 @@ never logged.
 
 **Something isn't fixing / a fixer site is down.**
 The fixer services are community-run and occasionally have outages. PlayFix handles the common case
-itself: after posting, it checks whether Discord actually drew an embed, and if it didn't, it edits the
+itself: after posting, it checks whether the video actually showed up, and if it didn't, it edits the
 message to retry the link on that site's spare fixer (TikTok falls back from `tnktok.com` to
 `tiktokez.com`). The spare is only used when the primary comes up empty, so you keep the better
 click-through on a normal day. If a fixer is down for good, open an issue and we'll adjust the mapping
 in [`sites.py`](src/playfix/sites.py).
+
+**I get a "⚠️ Sensitive Content" / age-restricted card instead of the video.**
+That card is the fixer's own page saying the source refused it — it is an embed, so it used to count as
+success. PlayFix now reads the card, treats it as the failure it is, and retries the link on the spare
+fixer, which usually does show the video. If both fixers refuse it, the card stays: the video is only
+viewable on the platform itself.
 
 ## 🛠️ How it works
 
