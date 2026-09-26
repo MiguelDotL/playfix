@@ -15,5 +15,13 @@ All notable changes to PlayFix are documented here. Format follows
 - Docker image + `docker-compose.yml` for one-command self-hosting.
 - Per-site `strip_query` rule flag, enabled for Instagram: the `?igsh=` share tracker is
   dropped from the fixed link instead of being carried into the repost.
+- Per-site `fallback_domain`: when a repost draws no embed, the link is retried on that site's
+  spare fixer (TikTok `tnktok.com` → `tiktokez.com`). Tunable via `PLAYFIX_EMBED_FALLBACK`,
+  `PLAYFIX_EMBED_CHECK_DELAY` and `PLAYFIX_EMBED_CHECK_ATTEMPTS`.
+
+### Fixed
+- A fixer's "⚠️ Sensitive Content" / age-restricted card no longer counts as a working embed.
+  The card is an embed like any other, so the spare-fixer retry never fired and the apology
+  stayed on screen; PlayFix now reads it as a failure and retries the link on the spare.
 
 [Unreleased]: https://github.com/playfix/playfix/commits/main
