@@ -10,9 +10,10 @@ Each guild picks one of two strategies:
   the bot lacks the permissions webhook mode needs.
 
 Posting the fixed link is not the end of the job: the fixer services are free,
-rate-limited and occasionally down, so a link can land with no embed at all. After
-each repost we look back at the message and, if Discord drew nothing, retry the
-link on the rule's spare fixer (see :meth:`Reposter._check_embed`).
+rate-limited and occasionally down, so a link can land with no embed at all — or
+with an embed that is only the fixer apologising. After each repost we look back at
+the message and, if the video did not actually show up, retry the link on the rule's
+spare fixer (see :meth:`Reposter._check_embed`).
 """
 
 from __future__ import annotations
@@ -44,6 +45,28 @@ _NO_MENTIONS = discord.AllowedMentions.none()
 def _same_link(a: str, b: str) -> bool:
     """Compare two URLs the way Discord echoes them back — case- and slash-insensitively."""
     return a.rstrip("/").casefold() == b.rstrip("/").casefold()
+
+
+# When the source refuses a fixer — an age-restricted or private TikTok, a deleted
+# post, a login wall — the fixer answers 200 with a stub page carrying only an
+# apology in its OpenGraph tags. Discord draws that stub as a perfectly normal
+# embed, so "the message has an embed" is not the same as "the video plays": we
+# have to read the card to tell a fix from an apology. Matched case-insensitively
+# against the embed's title and description.
+_REFUSAL_PHRASES = (
+    "sensitive content",
+    "age-restricted",
+    "age restricted",
+    "unable to show this video",
+    "unable to load",
+    "this post is private",
+)
+
+
+def _is_refusal(embed: discord.Embed) -> bool:
+    """True when an embed is a fixer's "sorry, no video" card rather than the media."""
+    card = f"{embed.title or ''}\n{embed.description or ''}".casefold()
+    return any(phrase in card for phrase in _REFUSAL_PHRASES)
 
 
 class _Repost:
@@ -198,11 +221,14 @@ class Reposter:
         task.add_done_callback(self._checks.discard)
 
     async def _check_embed(self, result: RewriteResult, repost: _Repost) -> None:
-        """Retry on the spare fixer any link Discord failed to draw an embed for.
+        """Retry on the spare fixer any link that did not end up playing.
 
         Discord crawls a link *after* the message is posted, so we wait, re-read the
         message, and compare the embeds it ended up with against the links that have
-        a spare. Anything missing gets swapped and the message edited in place.
+        a spare. A link counts as fixed only if it drew an embed that is actually the
+        media — a refusal card (see :func:`_is_refusal`) is treated the same as no
+        embed at all, because to the reader it is the same failure. Anything missing
+        gets swapped and the message edited in place.
 
         We look more than once: a crawl that is merely slow must not cost us the
         primary fixer's better click-through, so a swap only happens once every
@@ -212,7 +238,9 @@ class Reposter:
             for _ in range(max(1, self._settings.embed_check_attempts)):
                 await asyncio.sleep(self._settings.embed_check_delay)
                 posted = await repost.refetch()
-                embedded = [embed.url for embed in posted.embeds if embed.url]
+                embedded = [
+                    embed.url for embed in posted.embeds if embed.url and not _is_refusal(embed)
+                ]
                 missing = {
                     fixed: spare
                     for fixed, spare in result.fallbacks.items()
@@ -228,7 +256,7 @@ class Reposter:
                 return
 
             await repost.edit(content)
-            log.info("no embed for %s; retried on the fallback fixer", ", ".join(sorted(missing)))
+            log.info("no video for %s; retried on the fallback fixer", ", ".join(sorted(missing)))
         except (discord.NotFound, discord.Forbidden, discord.HTTPException) as exc:
             # The message was deleted, or we lost the permission to touch it. Either
             # way the fix is best-effort — never let it surface as a bot error.
