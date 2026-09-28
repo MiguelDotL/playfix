@@ -126,3 +126,26 @@ def test_instagram_stripped_url_is_idempotent() -> None:
 def test_text_instagram_tracker_stripped_in_message() -> None:
     res = rewrite_text("look https://www.instagram.com/reel/CxYz/?igsh=abc123 nice")
     assert res.text == "look https://kkinstagram.com/reel/CxYz/ nice"
+
+
+def test_facebook_reel_link_rewritten() -> None:
+    assert (
+        rewrite_url("https://www.facebook.com/reel/1502739275232354")
+        == "https://facebed.seria.moe/reel/1502739275232354"
+    )
+
+
+def test_facebook_share_link_keeps_its_query() -> None:
+    """The ?mibextid= tracker rides along: Facebook cannot use strip_query."""
+    assert (
+        rewrite_url("https://www.facebook.com/share/v/19i7MoHXdd/?mibextid=wwXIfr")
+        == "https://facebed.seria.moe/share/v/19i7MoHXdd/?mibextid=wwXIfr"
+    )
+
+
+def test_facebook_watch_link_keeps_the_video_id_in_the_query() -> None:
+    """/watch?v=<id> puts the video id in the query — stripping it breaks the link."""
+    assert (
+        rewrite_url("https://www.facebook.com/watch/?v=1234567890")
+        == "https://facebed.seria.moe/watch/?v=1234567890"
+    )

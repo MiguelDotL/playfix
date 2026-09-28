@@ -20,6 +20,9 @@ All notable changes to PlayFix are documented here. Format follows
   `PLAYFIX_EMBED_CHECK_DELAY` and `PLAYFIX_EMBED_CHECK_ATTEMPTS`.
 
 ### Fixed
+- Facebook links now rewrite to `facebed.seria.moe`, with `facebed.com` demoted to the spare.
+  Both run the same facebed software and serve byte-comparable OpenGraph tags, yet `facebed.com`
+  drew no embed in Discord where `facebed.seria.moe` played the video on the same link.
 - A fixer's "⚠️ Sensitive Content" / age-restricted card no longer counts as a working embed.
   The card is an embed like any other, so the spare-fixer retry never fired and the apology
   stayed on screen; PlayFix now reads it as a failure and retries the link on the spare.

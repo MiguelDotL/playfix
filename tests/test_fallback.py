@@ -30,6 +30,22 @@ def test_a_spare_never_equals_the_primary() -> None:
         assert rule.fallback_domain != rule.fix_domain
 
 
+def test_facebook_declares_a_spare_fixer() -> None:
+    """facebed.com drew no embed on 2026-09-28 where facebed.seria.moe played."""
+    facebook = next(rule for rule in SITES if rule.id == "facebook")
+    assert facebook.fix_domain == "facebed.seria.moe"
+    assert facebook.fallback_domain == "facebed.com"
+
+
+def test_rewrite_records_the_spare_for_facebook() -> None:
+    res = rewrite_text("https://www.facebook.com/reel/1502739275232354")
+    assert res.fallbacks == {
+        "https://facebed.seria.moe/reel/1502739275232354": (
+            "https://facebed.com/reel/1502739275232354"
+        )
+    }
+
+
 # ------------------------------------------------------------------ rewrites
 
 

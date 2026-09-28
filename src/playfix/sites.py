@@ -122,8 +122,18 @@ SITES: tuple[SiteRule, ...] = (
         id="facebook",
         name="Facebook",
         domains=("facebook.com", "fb.watch"),
-        fix_domain="facebed.com",
+        # Both of these run the same software (facebed), and both serve the same
+        # OpenGraph tags for a reel — yet on 2026-09-28 `facebed.com` reliably drew
+        # no embed at all in Discord while `facebed.seria.moe` played the video, on
+        # the same link, minutes apart. The metadata is identical, so whatever the
+        # difference is lives between Discord's crawler and the host, not in the
+        # page. Primary is the instance observed to work; the other stays as spare.
+        fix_domain="facebed.seria.moe",
+        fallback_domain="facebed.com",
         path_re=_compile(r"/(?:share/[rvp]/[\w-]+|reel/\d+|watch|[\w.]+/(?:videos|posts)/\w+|\w+)"),
+        # NOT strip_query, tempting as the ?mibextid= share tracker is: Facebook's
+        # /watch links carry the video id in the query (`/watch?v=<id>`), so dropping
+        # it would rewrite them to a bare /watch. facebed ignores the tracker anyway.
     ),
     SiteRule(
         id="bilibili",
