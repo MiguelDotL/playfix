@@ -118,24 +118,38 @@ class FakePosted:
 
 
 class FakeRepost:
-    """Stands in for a posted message: hands back ``posted``, records any edit.
+    """Stands in for a posted message: hands back ``posted``, records every edit.
 
     Pass several states to model a crawl that lands late — each ``refetch`` returns
-    the next one, then repeats the last.
+    the next one, then repeats the last. ``after_swap`` is what Discord makes of the
+    message once the check has edited it to the spare; leave it out to model a spare
+    that draws nothing either.
     """
 
-    def __init__(self, *posted: FakePosted) -> None:
+    def __init__(self, *posted: FakePosted, after_swap: FakePosted | None = None) -> None:
         self._posted = list(posted)
+        self._after_swap = after_swap
+        self._swapped = False
         self.fetches = 0
-        self.edited_to: str | None = None
+        self.fetches_after_swap = 0
+        self.edits: list[str] = []
+
+    @property
+    def edited_to(self) -> str | None:
+        """The content the message was left with, or ``None`` if never edited."""
+        return self.edits[-1] if self.edits else None
 
     async def refetch(self) -> FakePosted:
+        if self._swapped:
+            self.fetches_after_swap += 1
+            return self._after_swap or FakePosted(self.edits[-1], [])
         state = self._posted[min(self.fetches, len(self._posted) - 1)]
         self.fetches += 1
         return state
 
     async def edit(self, content: str) -> None:
-        self.edited_to = content
+        self.edits.append(content)
+        self._swapped = True
 
 
 def make_reposter() -> Reposter:
@@ -153,7 +167,7 @@ def test_no_edit_when_the_embed_landed() -> None:
 
 def test_swaps_to_the_spare_when_no_embed_landed() -> None:
     result = rewrite_text(TIKTOK)
-    repost = FakeRepost(FakePosted(FIXED, []))
+    repost = FakeRepost(FakePosted(FIXED, []), after_swap=FakePosted(SPARE, [FakeEmbed(SPARE)]))
     asyncio.run(make_reposter()._check_embed(result, repost))  # type: ignore[arg-type]
     assert repost.edited_to == SPARE
 
@@ -161,13 +175,13 @@ def test_swaps_to_the_spare_when_no_embed_landed() -> None:
 def test_an_unrelated_embed_does_not_count_as_success() -> None:
     """A second link embedding fine must not mask the TikTok link drawing nothing."""
     result = rewrite_text(f"{TIKTOK} https://x.com/a/status/1")
-    posted = FakePosted(
-        f"{FIXED} https://fxtwitter.com/a/status/1",
-        [FakeEmbed("https://fxtwitter.com/a/status/1")],
+    other = "https://fxtwitter.com/a/status/1"
+    repost = FakeRepost(
+        FakePosted(f"{FIXED} {other}", [FakeEmbed(other)]),
+        after_swap=FakePosted(f"{SPARE} {other}", [FakeEmbed(SPARE), FakeEmbed(other)]),
     )
-    repost = FakeRepost(posted)
     asyncio.run(make_reposter()._check_embed(result, repost))  # type: ignore[arg-type]
-    assert repost.edited_to == f"{SPARE} https://fxtwitter.com/a/status/1"
+    assert repost.edited_to == f"{SPARE} {other}"
 
 
 def test_no_edit_when_the_link_is_gone_from_the_message() -> None:
@@ -191,7 +205,7 @@ def test_a_late_embed_on_the_second_look_prevents_a_swap() -> None:
 
 def test_swap_only_after_every_attempt_comes_back_empty() -> None:
     result = rewrite_text(TIKTOK)
-    repost = FakeRepost(FakePosted(FIXED, []))
+    repost = FakeRepost(FakePosted(FIXED, []), after_swap=FakePosted(SPARE, [FakeEmbed(SPARE)]))
     reposter = make_reposter()
     asyncio.run(reposter._check_embed(result, repost))  # type: ignore[arg-type]
     assert repost.fetches == reposter._settings.embed_check_attempts
@@ -219,14 +233,20 @@ def test_is_refusal(title: str | None, description: str | None, expected: bool) 
 def test_a_refusal_card_with_a_url_still_counts_as_no_video() -> None:
     """An age-restricted TikTok embeds an apology, not the video — retry the spare."""
     result = rewrite_text(TIKTOK)
-    repost = FakeRepost(FakePosted(FIXED, [refusal_embed(FIXED)]))
+    repost = FakeRepost(
+        FakePosted(FIXED, [refusal_embed(FIXED)]),
+        after_swap=FakePosted(SPARE, [FakeEmbed(SPARE)]),
+    )
     asyncio.run(make_reposter()._check_embed(result, repost))  # type: ignore[arg-type]
     assert repost.edited_to == SPARE
 
 
 def test_a_refusal_card_without_a_url_also_counts_as_no_video() -> None:
     result = rewrite_text(TIKTOK)
-    repost = FakeRepost(FakePosted(FIXED, [refusal_embed(None)]))
+    repost = FakeRepost(
+        FakePosted(FIXED, [refusal_embed(None)]),
+        after_swap=FakePosted(SPARE, [FakeEmbed(SPARE)]),
+    )
     asyncio.run(make_reposter()._check_embed(result, repost))  # type: ignore[arg-type]
     assert repost.edited_to == SPARE
 
@@ -236,7 +256,49 @@ def test_a_refusal_on_one_link_does_not_swap_a_link_that_played() -> None:
     result = rewrite_text(f"{TIKTOK} https://x.com/a/status/1")
     other = "https://fxtwitter.com/a/status/1"
     repost = FakeRepost(
-        FakePosted(f"{FIXED} {other}", [refusal_embed(FIXED), FakeEmbed(other, "a post")])
+        FakePosted(f"{FIXED} {other}", [refusal_embed(FIXED), FakeEmbed(other, "a post")]),
+        after_swap=FakePosted(f"{SPARE} {other}", [FakeEmbed(SPARE), FakeEmbed(other)]),
     )
     asyncio.run(make_reposter()._check_embed(result, repost))  # type: ignore[arg-type]
     assert repost.edited_to == f"{SPARE} {other}"
+
+
+# --------------------------------------------- when the spare fails as well
+
+
+def embedez_failure_embed(url: str | None) -> FakeEmbed:
+    """What tiktokez.com served for an age-restricted TikTok on 2026-09-29."""
+    return FakeEmbed(url, title="Failed to Get Post | EmbedEZ")
+
+
+def test_the_primary_is_restored_when_the_spare_draws_nothing_either() -> None:
+    """A bare link to a dead spare says less than the primary's "age-restricted" card."""
+    result = rewrite_text(TIKTOK)
+    repost = FakeRepost(FakePosted(FIXED, [refusal_embed(FIXED)]))  # spare fails too
+    asyncio.run(make_reposter()._check_embed(result, repost))  # type: ignore[arg-type]
+    assert repost.edits == [SPARE, FIXED]  # swapped, then put back
+    assert repost.edited_to == FIXED
+    # One look, not two: the spare was reached only after the primary had already
+    # been given every attempt, so there is no slow-crawl benefit of the doubt left
+    # to give — and a second wait leaves a dead link on screen for twice as long.
+    assert repost.fetches_after_swap == 1
+
+
+def test_the_primary_is_restored_when_the_spare_serves_its_own_error_card() -> None:
+    result = rewrite_text(TIKTOK)
+    repost = FakeRepost(
+        FakePosted(FIXED, [refusal_embed(FIXED)]),
+        after_swap=FakePosted(SPARE, [embedez_failure_embed(SPARE)]),
+    )
+    asyncio.run(make_reposter()._check_embed(result, repost))  # type: ignore[arg-type]
+    assert repost.edited_to == FIXED
+
+
+def test_a_working_spare_is_never_undone() -> None:
+    result = rewrite_text(TIKTOK)
+    repost = FakeRepost(
+        FakePosted(FIXED, [refusal_embed(FIXED)]),
+        after_swap=FakePosted(SPARE, [FakeEmbed(SPARE)]),
+    )
+    asyncio.run(make_reposter()._check_embed(result, repost))  # type: ignore[arg-type]
+    assert repost.edits == [SPARE]
