@@ -112,8 +112,9 @@ in [`sites.py`](src/playfix/sites.py).
 **I get a "⚠️ Sensitive Content" / age-restricted card instead of the video.**
 That card is the fixer's own page saying the source refused it — it is an embed, so it used to count as
 success. PlayFix now reads the card, treats it as the failure it is, and retries the link on the spare
-fixer, which usually does show the video. If both fixers refuse it, the card stays: the video is only
-viewable on the platform itself.
+fixer. If the spare comes up empty as well, the original link is put back so you keep the card that at
+least explains why: the video is viewable only on the platform itself. Age-restricted posts in
+particular are refused by every fixer we know of, so expect the card rather than the video.
 
 ## 🛠️ How it works
 

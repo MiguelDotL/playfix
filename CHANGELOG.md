@@ -26,5 +26,8 @@ All notable changes to PlayFix are documented here. Format follows
 - A fixer's "⚠️ Sensitive Content" / age-restricted card no longer counts as a working embed.
   The card is an embed like any other, so the spare-fixer retry never fired and the apology
   stayed on screen; PlayFix now reads it as a failure and retries the link on the spare.
+- The primary fixer's link is restored when the spare draws nothing either. Spares go down
+  too — `tiktokez.com` answers "Failed to Get Post" for age-restricted TikToks — and a bare
+  link to a second dead fixer tells the reader less than the first one's "age-restricted" card.
 
 [Unreleased]: https://github.com/playfix/playfix/commits/main
