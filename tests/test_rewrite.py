@@ -20,15 +20,15 @@ from playfix.rewrite import rewrite_text, rewrite_url
             "https://fxtwitter.com/a/status/1?s=20&t=abc",
         ),
         # Instagram content — the ?igsh= share tracker is stripped.
-        ("https://instagram.com/reel/CxYz", "https://kkinstagram.com/reel/CxYz"),
-        ("https://www.instagram.com/p/AbC-1/", "https://kkinstagram.com/p/AbC-1/"),
+        ("https://instagram.com/reel/CxYz", "https://vxinstagram.com/reel/CxYz"),
+        ("https://www.instagram.com/p/AbC-1/", "https://vxinstagram.com/p/AbC-1/"),
         (
             "https://www.instagram.com/reel/CxYz/?igsh=MzRlODBiNWFlZA%3D%3D",
-            "https://kkinstagram.com/reel/CxYz/",
+            "https://vxinstagram.com/reel/CxYz/",
         ),
         (
             "https://instagram.com/p/AbC-1/?igsh=x&utm_source=ig_web_copy_link",
-            "https://kkinstagram.com/p/AbC-1/",
+            "https://vxinstagram.com/p/AbC-1/",
         ),
         # TikTok content.
         (
@@ -112,20 +112,20 @@ def test_instagram_query_stripped_other_sites_keep_it() -> None:
     """strip_query is per-rule: Instagram drops the query, X keeps it."""
     assert (
         rewrite_url("https://instagram.com/p/AbC/?igsh=tracking")
-        == "https://kkinstagram.com/p/AbC/"
+        == "https://vxinstagram.com/p/AbC/"
     )
     assert rewrite_url("https://x.com/a/status/1?s=20") == "https://fxtwitter.com/a/status/1?s=20"
 
 
 def test_instagram_stripped_url_is_idempotent() -> None:
     once = rewrite_url("https://www.instagram.com/reel/CxYz/?igsh=abc")
-    assert once == "https://kkinstagram.com/reel/CxYz/"
+    assert once == "https://vxinstagram.com/reel/CxYz/"
     assert rewrite_url(once) is None
 
 
 def test_text_instagram_tracker_stripped_in_message() -> None:
     res = rewrite_text("look https://www.instagram.com/reel/CxYz/?igsh=abc123 nice")
-    assert res.text == "look https://kkinstagram.com/reel/CxYz/ nice"
+    assert res.text == "look https://vxinstagram.com/reel/CxYz/ nice"
 
 
 def test_facebook_reel_link_rewritten() -> None:

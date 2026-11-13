@@ -60,7 +60,13 @@ SITES: tuple[SiteRule, ...] = (
         id="instagram",
         name="Instagram",
         domains=("instagram.com",),
-        fix_domain="kkinstagram.com",
+        # kkinstagram.com hands some reels back as their cover JPEG instead of the
+        # video (2026-11-13: /reel/DfcE6XrxSqB/ 302'd to a .jpg, so Discord drew a
+        # still image), while vxinstagram.com served that reel's real mp4. A still
+        # image still counts as "an embed", so the spare can't rescue that case —
+        # the primary has to be the fixer that returns the video.
+        fix_domain="vxinstagram.com",
+        fallback_domain="kkinstagram.com",
         path_re=_compile(r"/(?:p|reel|reels|tv|share)/[\w.-]+"),
         # Share links append ?igsh=<tracking token>; nothing in the query is useful.
         strip_query=True,

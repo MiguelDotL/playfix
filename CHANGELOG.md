@@ -20,6 +20,9 @@ All notable changes to PlayFix are documented here. Format follows
   `PLAYFIX_EMBED_CHECK_DELAY` and `PLAYFIX_EMBED_CHECK_ATTEMPTS`.
 
 ### Fixed
+- Instagram links now rewrite to `vxinstagram.com`, with `kkinstagram.com` demoted to the spare.
+  `kkinstagram.com` returned some reels as their cover image instead of the video, so the
+  repost showed a still picture; `vxinstagram.com` served the playable mp4 for the same reel.
 - Facebook links now rewrite to `facebed.seria.moe`, with `facebed.com` demoted to the spare.
   Both run the same facebed software and serve byte-comparable OpenGraph tags, yet `facebed.com`
   drew no embed in Discord where `facebed.seria.moe` played the video on the same link.
