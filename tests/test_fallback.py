@@ -56,14 +56,14 @@ def test_rewrite_records_the_spare_for_tiktok() -> None:
 
 
 def test_rewrite_records_no_spare_for_sites_without_one() -> None:
-    res = rewrite_text("https://x.com/a/status/1")
+    res = rewrite_text("https://www.reddit.com/r/x/comments/abc123")
     assert res.changed
     assert res.fallbacks == {}
 
 
 def test_fallback_text_swaps_only_the_fallback_capable_link() -> None:
-    res = rewrite_text(f"{TIKTOK} and https://x.com/a/status/1")
-    assert res.fallback_text() == f"{SPARE} and https://fxtwitter.com/a/status/1"
+    res = rewrite_text(f"{TIKTOK} and https://www.reddit.com/r/x/comments/abc123")
+    assert res.fallback_text() == f"{SPARE} and https://vxreddit.com/r/x/comments/abc123"
 
 
 # ------------------------------------------------------------- link matching

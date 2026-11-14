@@ -20,6 +20,15 @@ All notable changes to PlayFix are documented here. Format follows
   `PLAYFIX_EMBED_CHECK_DELAY` and `PLAYFIX_EMBED_CHECK_ATTEMPTS`.
 
 ### Fixed
+- Fixers re-measured against live links on 2026-11-14. Instagram's spare is now `zzinstagram.com`
+  (`kkinstagram.com` returned cover images, timed out, and sends clicks to an ad-ready page). New
+  spares: X → `vxtwitter.com`, Bluesky → `bskx.app`.
+- Link forms that used to break now reach a working fixer: `vm.`/`vt.tiktok.com` share links,
+  `clips.twitch.tv/<slug>`, Tumblr blog-subdomain posts, `redd.it` short links, Reddit galleries and
+  `b23.tv` (now via `vxb23.tv`).
+- Links with nothing to fix are left alone instead of being reposted broken: Twitch channels and
+  Facebook profiles, `fb.watch` short links (facebed shows a login card for them), and Newgrounds,
+  whose fixer is down.
 - TikTok's spare fixer is now `kktiktok.com`. `tiktokez.com` had started sending crawlers to an
   EmbedEZ download page with no preview tags, so every retry failed; `kktiktok.com` serves the video
   even for age-restricted TikToks.

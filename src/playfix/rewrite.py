@@ -79,9 +79,10 @@ def _rewrite(url: str) -> tuple[str, str | None] | None:
     # Replace the whole netloc (drops any userinfo/port); keep path/fragment, and
     # keep the query unless the rule says it is tracking-only noise.
     query = "" if rule.strip_query else parts.query
+    path = rule.path_fn(host, parts.path) if rule.path_fn else parts.path
 
     def swap(domain: str) -> str:
-        return urlunsplit(parts._replace(netloc=domain, query=query))
+        return urlunsplit(parts._replace(netloc=domain, path=path, query=query))
 
     spare = swap(rule.fallback_domain) if rule.fallback_domain else None
     return swap(rule.fix_domain), spare

@@ -184,3 +184,51 @@ def test_only_the_unsuppressed_link_is_rewritten() -> None:
 )
 def test_links_that_would_embed_are_still_rewritten(text: str) -> None:
     assert "fxtwitter.com" in rewrite_text(text).text
+
+
+# ------------------------------------- URL forms measured against live fixers
+# Each pair was checked end to end on 2026-11-14: the fixed link served a real
+# video or image to the Discord crawler (the forms on the left used to break).
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        # TikTok app share links: the code is the whole path.
+        ("https://vm.tiktok.com/ZGdX99q2t/", "https://tnktok.com/ZGdX99q2t/"),
+        ("https://vt.tiktok.com/ZSp43QQPF/", "https://tnktok.com/ZSp43QQPF/"),
+        # fxtwitch only serves clips under /clip/; the bare slug 404s.
+        (
+            "https://clips.twitch.tv/AbnegateProudGoatVoteYea-Dh6ckDOQBQkrl7ox",
+            "https://fxtwitch.seria.moe/clip/AbnegateProudGoatVoteYea-Dh6ckDOQBQkrl7ox",
+        ),
+        # tpmblr needs the blog name, which a blog-subdomain link carries in the host.
+        (
+            "https://breizh5sur5.tumblr.com/post/832696839928152064/",
+            "https://tpmblr.com/breizh5sur5/832696839928152064/",
+        ),
+        (
+            "https://www.tumblr.com/breizh5sur5/832696839928152064",
+            "https://tpmblr.com/breizh5sur5/832696839928152064",
+        ),
+        ("https://redd.it/1xw3icr", "https://vxreddit.com/1xw3icr"),
+        ("https://www.reddit.com/gallery/1xllqux", "https://vxreddit.com/comments/1xllqux"),
+        ("https://b23.tv/64Cmftc", "https://vxb23.tv/64Cmftc"),
+    ],
+)
+def test_url_forms_that_reach_a_working_fixer(url: str, expected: str) -> None:
+    assert rewrite_url(url) == expected
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://www.tiktok.com/explore",  # a page, not a video
+        "https://www.twitch.tv/shroud",  # a channel: fxtwitch 404s
+        "https://www.facebook.com/nasa",  # a profile
+        "https://fb.watch/KSZOlqa9Te/",  # facebed shows a login card for these
+        "https://www.newgrounds.com/portal/view/1020411",  # fixer down (HTTP 530)
+    ],
+)
+def test_links_with_nothing_to_fix_are_left_alone(url: str) -> None:
+    assert rewrite_url(url) is None

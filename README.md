@@ -22,7 +22,7 @@ One bot covers every server you add it to.
 ## ✨ Features
 
 - **Plays everywhere it should** — X/Twitter, TikTok, Instagram, Reddit, Bluesky, Tumblr, Pixiv,
-  Facebook, BiliBili, Twitch clips, Mastodon, and more. Adding a platform is [one line](CONTRIBUTING.md).
+  Facebook, BiliBili, Twitch clips, Spotify, and more. Adding a platform is [one line](CONTRIBUTING.md).
 - **Post as you** — reposts via webhook under the author's name + avatar, then removes the broken
   original. Or run in safe **reply** mode instead (see below).
 - **Per-server config** — `/playfix` slash commands, admin-only. Sensible defaults, zero setup to start.
@@ -109,8 +109,9 @@ never logged.
 **Something isn't fixing / a fixer site is down.**
 The fixer services are community-run and occasionally have outages. PlayFix handles the common case
 itself: after posting, it checks whether the video actually showed up, and if it didn't, it edits the
-message to retry the link on that site's spare fixer (TikTok falls back from `tnktok.com` to
-`kktiktok.com`, Instagram from `vxinstagram.com` to `kkinstagram.com`). The spare is only used when the primary comes up empty, so you keep the better
+message to retry the link on that site's spare fixer (for example TikTok falls back from `tnktok.com`
+to `kktiktok.com`, Instagram from `vxinstagram.com` to `zzinstagram.com`, X from `fxtwitter.com` to
+`vxtwitter.com`). The spare is only used when the primary comes up empty, so you keep the better
 click-through on a normal day. If a fixer is down for good, open an issue and we'll adjust the mapping
 in [`sites.py`](src/playfix/sites.py).
 
