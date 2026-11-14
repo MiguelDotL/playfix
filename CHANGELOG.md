@@ -20,6 +20,26 @@ All notable changes to PlayFix are documented here. Format follows
   `PLAYFIX_EMBED_CHECK_DELAY` and `PLAYFIX_EMBED_CHECK_ATTEMPTS`.
 
 ### Fixed
+- Fixers re-measured against live links on 2026-11-14. Instagram's spare is now `zzinstagram.com`
+  (`kkinstagram.com` returned cover images, timed out, and sends clicks to an ad-ready page). New
+  spares: X → `vxtwitter.com`, Bluesky → `bskx.app`.
+- Link forms that used to break now reach a working fixer: `vm.`/`vt.tiktok.com` share links,
+  `clips.twitch.tv/<slug>`, Tumblr blog-subdomain posts, `redd.it` short links, Reddit galleries and
+  `b23.tv` (now via `vxb23.tv`).
+- Links with nothing to fix are left alone instead of being reposted broken: Twitch channels and
+  Facebook profiles, `fb.watch` short links (facebed shows a login card for them), and Newgrounds,
+  whose fixer is down.
+- TikTok's spare fixer is now `kktiktok.com`. `tiktokez.com` had started sending crawlers to an
+  EmbedEZ download page with no preview tags, so every retry failed; `kktiktok.com` serves the video
+  even for age-restricted TikToks.
+- Links wrapped in `<angle brackets>` or inside code are no longer rewritten. The author asked for no
+  preview, so the repost changed nothing except the author's message.
+- Replies are fixed in reply mode instead of being reposted. A webhook can't reply, so the repost
+  lost the link to the message it answered.
+- A message whose attachment is too large to re-upload, or fails to download, is no longer deleted.
+  The attachment used to be dropped silently and lost with the original.
+- A webhook deleted from under PlayFix is recreated. The stale cached copy used to push every later
+  message in that channel into reply mode until a restart.
 - Instagram links now rewrite to `vxinstagram.com`, with `kkinstagram.com` demoted to the spare.
   `kkinstagram.com` returned some reels as their cover image instead of the video, so the
   repost showed a still picture; `vxinstagram.com` served the playable mp4 for the same reel.

@@ -144,8 +144,14 @@ class Reposter:
         result: RewriteResult,
         perms: discord.Permissions,
     ) -> bool:
+        assert message.guild is not None
         return (
             cfg.mode == "webhook"
+            # A webhook can't reply, so reposting a reply would cut it loose from
+            # the message it answers. Leave it in place and reply with the fix.
+            and message.type is not discord.MessageType.reply
+            # Deleting the original would lose any attachment we can't carry over.
+            and all(a.size <= self._attachment_limit(message.guild) for a in message.attachments)
             and isinstance(message.channel, WEBHOOK_CHANNELS)
             and perms.manage_webhooks
             and perms.manage_messages
@@ -160,21 +166,37 @@ class Reposter:
         if host is None:  # a thread whose parent we can't see — fall back to a reply
             return None
 
-        try:
-            webhook = await self._webhook_for(host)
-            sent = await webhook.send(
-                content=content or None,
-                username=message.author.display_name,
-                avatar_url=message.author.display_avatar.url,
-                files=await self._copy_attachments(message),
-                allowed_mentions=_NO_MENTIONS,
-                thread=thread or discord.utils.MISSING,
-                wait=True,  # we need the message back to check its embed later
-            )
-            return _Repost(sent, webhook=webhook, thread=thread)
-        except (discord.Forbidden, discord.HTTPException):
-            log.warning("webhook repost failed in channel %s; replying instead", channel.id)
+        files = await self._copy_attachments(message)
+        if files is None:  # an attachment didn't copy; deleting would lose it
             return None
+
+        # Our cached webhook can be deleted from under us (a moderator cleaning up
+        # integrations). Forget it and make a fresh one, or every later message in
+        # the channel would quietly fall back to reply mode until a restart.
+        for attempt in range(2):
+            try:
+                webhook = await self._webhook_for(host)
+                sent = await webhook.send(
+                    content=content or None,
+                    username=message.author.display_name,
+                    avatar_url=message.author.display_avatar.url,
+                    files=files,
+                    allowed_mentions=_NO_MENTIONS,
+                    thread=thread or discord.utils.MISSING,
+                    wait=True,  # we need the message back to check its embed later
+                )
+                return _Repost(sent, webhook=webhook, thread=thread)
+            except discord.NotFound:
+                self._webhooks.pop(host.id, None)
+                if attempt == 0:
+                    for file in files:
+                        file.reset()
+                    continue
+            except (discord.Forbidden, discord.HTTPException):
+                pass
+            break
+        log.warning("webhook repost failed in channel %s; replying instead", channel.id)
+        return None
 
     async def _webhook_for(self, channel: discord.abc.GuildChannel) -> discord.Webhook:
         """Return our webhook for ``channel``, reusing or creating it as needed."""
@@ -189,15 +211,23 @@ class Reposter:
         self._webhooks[channel.id] = webhook
         return webhook
 
-    async def _copy_attachments(self, message: discord.Message) -> list[discord.File]:
-        """Re-download the author's attachments so the repost keeps them (best effort)."""
-        size_limit = self._settings.max_attachment_mb * 1024 * 1024
+    def _attachment_limit(self, guild: discord.Guild) -> int:
+        """Largest attachment we'll re-upload: our own cap or the guild's, whichever is lower."""
+        return min(self._settings.max_attachment_mb * 1024 * 1024, guild.filesize_limit)
+
+    async def _copy_attachments(self, message: discord.Message) -> list[discord.File] | None:
+        """Re-download the author's attachments for the repost, or ``None`` if any failed.
+
+        All or nothing: the original is about to be deleted, so a repost missing an
+        attachment would lose it for good.
+        """
         files: list[discord.File] = []
         for attachment in message.attachments:
-            if attachment.size > size_limit:
-                continue
-            with contextlib.suppress(discord.HTTPException):
+            try:
                 files.append(await attachment.to_file())
+            except discord.HTTPException:
+                log.warning("could not copy an attachment in channel %s", message.channel.id)
+                return None
         return files
 
     async def _reply_with_fix(

@@ -25,6 +25,10 @@ _URL_RE = re.compile(r"https?://[^\s<>\"'`\]})]+", re.IGNORECASE)
 # Trailing characters that are almost always punctuation, not part of the URL.
 _TRAILING = ".,!?;:'\"`*_~"
 
+# Code blocks and inline code: a link there is being quoted, not shared, and
+# rewriting it would change what the author wrote.
+_CODE_RE = re.compile(r"```.*?```|`[^`\n]+`", re.DOTALL)
+
 
 @dataclass(frozen=True, slots=True)
 class RewriteResult:
@@ -75,9 +79,10 @@ def _rewrite(url: str) -> tuple[str, str | None] | None:
     # Replace the whole netloc (drops any userinfo/port); keep path/fragment, and
     # keep the query unless the rule says it is tracking-only noise.
     query = "" if rule.strip_query else parts.query
+    path = rule.path_fn(host, parts.path) if rule.path_fn else parts.path
 
     def swap(domain: str) -> str:
-        return urlunsplit(parts._replace(netloc=domain, query=query))
+        return urlunsplit(parts._replace(netloc=domain, path=path, query=query))
 
     spare = swap(rule.fallback_domain) if rule.fallback_domain else None
     return swap(rule.fix_domain), spare
@@ -90,10 +95,19 @@ def rewrite_url(url: str) -> str | None:
 
 
 def _find_urls(text: str) -> list[tuple[int, int, str]]:
-    """Return ``(start, end, url)`` spans with trailing punctuation trimmed off."""
+    """Return ``(start, end, url)`` spans with trailing punctuation trimmed off.
+
+    Links the author deliberately kept from embedding are left out: ``<wrapped>``
+    links (Discord's own "no preview" syntax) and anything inside code.
+    """
+    code = [m.span() for m in _CODE_RE.finditer(text)]
     spans: list[tuple[int, int, str]] = []
     for m in _URL_RE.finditer(text):
         start, end = m.start(), m.end()
+        if text[start - 1 : start] == "<" and text[end : end + 1] == ">":
+            continue
+        if any(lo <= start < hi for lo, hi in code):
+            continue
         url = m.group()
         while url and url[-1] in _TRAILING:
             url = url[:-1]
