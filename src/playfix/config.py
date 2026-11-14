@@ -25,8 +25,10 @@ class Settings(BaseSettings):
     default_mode: Mode = "webhook"
     default_delete_original: bool = True
 
-    #: Best-effort attachment re-upload cap (MB) when reposting as the author.
-    max_attachment_mb: int = 8
+    #: Largest attachment (MB) we'll re-upload when reposting as the author. A message
+    #: with a bigger one is fixed in reply mode instead, so the original (and the
+    #: attachment) stays. The guild's own upload limit applies too, if lower.
+    max_attachment_mb: int = 25
     #: Discord hard limit on a single message's content length.
     max_content_length: int = 2000
 
