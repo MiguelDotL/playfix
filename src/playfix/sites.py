@@ -77,10 +77,14 @@ SITES: tuple[SiteRule, ...] = (
         domains=("tiktok.com",),
         fix_domain="tnktok.com",
         path_re=_compile(r"/(?:@[\w.-]+/(?:video|photo)/\d+|t/[\w-]+|v/\d+|embed/\d+)"),
-        # tnktok redirects humans to the real TikTok page, so it stays primary;
-        # tiktokez (EmbedEZ) embeds reliably but lands clicks on its own download
-        # page, which makes it a good spare rather than a good default.
-        fallback_domain="tiktokez.com",
+        # tnktok redirects humans to the real TikTok page, so it stays primary.
+        # The spare's job is mostly age-restricted videos, where tnktok serves a
+        # "⚠️ Sensitive Content" card. kktiktok 302s straight to the TikTok CDN mp4
+        # even for those (3/3 measured 2026-11-14). It lands human clicks on a
+        # kkclip.com "Open in App" page, which is why it isn't primary. The previous
+        # spare, tiktokez.com, now sends crawlers to an EmbedEZ download page with
+        # no OpenGraph tags at all.
+        fallback_domain="kktiktok.com",
     ),
     SiteRule(
         id="reddit",

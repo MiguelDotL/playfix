@@ -13,7 +13,7 @@ from playfix.sites import SITES
 
 TIKTOK = "https://www.tiktok.com/@someone/video/7678001595837107486"
 FIXED = "https://tnktok.com/@someone/video/7678001595837107486"
-SPARE = "https://tiktokez.com/@someone/video/7678001595837107486"
+SPARE = "https://kktiktok.com/@someone/video/7678001595837107486"
 
 
 # --------------------------------------------------------------------- rules
@@ -22,7 +22,7 @@ SPARE = "https://tiktokez.com/@someone/video/7678001595837107486"
 def test_tiktok_declares_a_spare_fixer() -> None:
     tiktok = next(rule for rule in SITES if rule.id == "tiktok")
     assert tiktok.fix_domain == "tnktok.com"
-    assert tiktok.fallback_domain == "tiktokez.com"
+    assert tiktok.fallback_domain == "kktiktok.com"
 
 
 def test_a_spare_never_equals_the_primary() -> None:
